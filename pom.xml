@@ -1,0 +1,139 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
+        http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>rpokorny</groupId>
+    <artifactId>jooq-table-function-bug</artifactId>
+    <version>1.0.0-SNAPSHOT</version>
+
+
+    <name>${project.artifactId}</name>
+
+    <properties>
+        <!-- Change this property to see which versions have the bug.
+             What I've tested:
+             Working: 3.6.0, 3.7.0
+             Not Working: 3.8.0, 3.8.2
+        -->
+        <org.jooq.version>3.8.2</org.jooq.version>
+
+        <jdbc.postgres.version>9.1-901-1.jdbc4</jdbc.postgres.version>
+
+        <db.driver>org.postgresql.Driver</db.driver>
+        <autogen.db.name>jooq_autogen_bug</autogen.db.name>
+        <autogen.db.user>jooq</autogen.db.user>
+        <autogen.db.password>password</autogen.db.password>
+        <autogen.db.url>
+            jdbc:postgresql://localhost/${autogen.db.name}
+        </autogen.db.url>
+    </properties>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>sql-maven-plugin</artifactId>
+                <version>1.5</version>
+
+                <configuration>
+                    <driver>${db.driver}</driver>
+                    <url>${autogen.db.url}</url>
+                    <username>${autogen.db.user}</username>
+                    <password>${autogen.db.password}</password>
+                </configuration>
+
+                <dependencies>
+                    <dependency>
+                        <groupId>postgresql</groupId>
+                        <artifactId>postgresql</artifactId>
+                        <version>${jdbc.postgres.version}</version>
+                    </dependency>
+                </dependencies>
+
+                <executions>
+                    <execution>
+                        <id>clear-${autogen.db.name}-db</id>
+                        <phase>generate-sources</phase>
+                        <goals>
+                            <goal>execute</goal>
+                        </goals>
+                        <configuration>
+                            <!-- Cannot be in the db that we are about to drop -->
+                            <url>jdbc:postgresql://localhost/postgres</url>
+                            <autocommit>true</autocommit>
+                            <sqlCommand>
+                                DROP DATABASE IF EXISTS ${autogen.db.name};
+                                CREATE DATABASE ${autogen.db.name};
+                            </sqlCommand>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>populate-${autogen.db.name}-db</id>
+                        <phase>generate-sources</phase>
+                        <goals>
+                            <goal>execute</goal>
+                        </goals>
+                        <configuration>
+                            <sqlCommand>
+                                CREATE FUNCTION test(input TEXT) RETURNS TABLE (output TEXT) AS
+                                $BODY$
+                                    SELECT * FROM (VALUES ('OUTPUT')) AS t;
+                                $BODY$ LANGUAGE sql
+                                ;
+                            </sqlCommand>
+                            <delimiterType>row</delimiterType>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.jooq</groupId>
+                <artifactId>jooq-codegen-maven</artifactId>
+                <version>${org.jooq.version}</version>
+
+                <executions>
+                    <execution>
+                        <phase>generate-sources</phase>
+                        <goals>
+                            <goal>generate</goal>
+                        </goals>
+                    </execution>
+                </executions>
+
+                <configuration>
+                    <jdbc>
+                        <url>${autogen.db.url}</url>
+                        <user>${autogen.db.user}</user>
+                        <password>${autogen.db.password}</password>
+                    </jdbc>
+                    <generator>
+                        <database>
+                            <inputSchema>public</inputSchema>
+                            <outputSchemaToDefault>true</outputSchemaToDefault>
+                        </database>
+                        <target>
+                            <packageName>jooqbug</packageName>
+                            <directory>target/generated-sources/jooq</directory>
+                        </target>
+                    </generator>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+
+    <dependencies>
+        <dependency>
+            <groupId>postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+            <version>${jdbc.postgres.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.jooq</groupId>
+            <artifactId>jooq</artifactId>
+            <version>${org.jooq.version}</version>
+        </dependency>
+    </dependencies>
+</project>
