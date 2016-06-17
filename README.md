@@ -10,8 +10,10 @@ the DSL, in either the SELECT or FROM clauses.
 ## Steps to reproduce
 1. Run mvn clean install
 2. Look in the `target/generated-sources/jooq/jooqbug/tables` directory
+
 Expected Results: A Test.java file representing the test() function defined in
 the SQL that is loaded in pom.xml
+
 Actual Results: The directory does not exist.  Instead, a `routines` directory
 exists.  Additionally, Routines.java only includes invocations of the function
 that include a `Configuration` parameter.
